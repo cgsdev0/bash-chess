@@ -22,6 +22,25 @@ en_passant=-1
 next_en_passant=-1
 declare -a has_moved
 
+render_piece_text() {
+  local piece='.'
+  case "$1" in
+    -$KING)   piece=k ;;
+    -$QUEEN)  piece=q ;;
+    -$ROOK)   piece=r ;;
+    -$BISHOP) piece=b ;;
+    -$KNIGHT) piece=n ;;
+    -$PAWN)   piece=p ;;
+    $KING)    piece=K ;;
+    $QUEEN)   piece=Q ;;
+    $ROOK)    piece=R ;;
+    $BISHOP)  piece=B ;;
+    $KNIGHT)  piece=N ;;
+    $PAWN)    piece=P ;;
+  esac
+  printf "%s" "$piece"
+}
+
 render_piece() {
   local piece=' '
   case "$1" in
@@ -291,7 +310,7 @@ can_do_move() {
           err="somebody in the way"
           return $ILLEGAL
         fi
-        local result=CASTLE_LONG
+        local result=$CASTLE_LONG
         err="couldn't castle sorry"
         # copy pasta time
         board[rook_row + 4]=0
@@ -311,7 +330,7 @@ can_do_move() {
         fi
         board[rook_row + 1]=0
         board[rook_row + 4]=$((KING * turn))
-        return $RESULT
+        return $result
       elif (( dc == 6 )); then
         if (( has_moved[rook_row + 7] )); then
           err="you moved your rook already"
@@ -325,7 +344,7 @@ can_do_move() {
           err="somebody in the way"
           return $ILLEGAL
         fi
-        local result=CASTLE_SHORT
+        local result=$CASTLE_SHORT
         err="couldn't castle sorry"
         board[rook_row + 4]=0
         board[rook_row + 5]=$((KING * turn))
@@ -339,7 +358,7 @@ can_do_move() {
         fi
         board[rook_row + 6]=0
         board[rook_row + 4]=$((KING * turn))
-        return $RESULT
+        return $result
       fi
 
       return $ILLEGAL
@@ -377,7 +396,7 @@ render
 while :; do
   next_en_passant=-1
   get_coord "Which piece? "
-  [[ -n "$REPLY" ]] || exit 0
+  [[ -n "$REPLY" ]] || break
   src=$REPLY
 
   if ((board[src] == 0)); then
@@ -391,15 +410,18 @@ while :; do
   fi
 
   get_coord "Where to? "
-  [[ -n "$REPLY" ]] || exit 0
+  [[ -n "$REPLY" ]] || break
   dest=$REPLY
 
   can_do_move $src $dest $turn 1
   result=$?
 
   if ((result == ILLEGAL)); then
+    last_err=$err
     echo "$err"
     continue
+  else
+    last_err=""
   fi
 
   temp=${board[dest]}
@@ -415,6 +437,7 @@ while :; do
     board[rook_row]=0
     board[rook_row+2]=$((ROOK * turn))
   fi
+
   if ((result == CASTLE_SHORT)); then
     board[rook_row+7]=0
     board[rook_row+5]=$((ROOK * turn))
@@ -452,3 +475,13 @@ while :; do
     break
   fi
 done
+
+if [[ -n "$BASH_CHESS_TESTING" ]]; then
+  echo "$last_err"
+  for (( r = 0; r < 8; ++r )); do
+    for (( c = 0; c < 8; ++c )); do
+      render_piece_text "${board[r*8+c]}"
+    done
+    echo
+  done
+fi
